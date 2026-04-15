@@ -1,0 +1,20 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: jwt-auth-context
+  namespace: apps
+plugin: jwt-auth-context
+config:
+  jwks_url: https://id.example.com/realms/main/protocol/openid-connect/certs
+  expected_issuer: https://id.example.com/realms/main
+  expected_audience: gateway
+  require_email_verified: true
+  required_role: app_user
+  on_missing_token: reject
+  on_invalid_token: reject
+  token_sources:
+    - authorization
+  custom_header_mappings:
+    - header: X-Auth-Realm-Roles
+      claim_path: $.realm_access.roles
+      json_encode: true

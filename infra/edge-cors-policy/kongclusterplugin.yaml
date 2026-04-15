@@ -1,0 +1,28 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongClusterPlugin
+metadata:
+  name: edge-cors-policy
+  labels:
+    global: "false"
+plugin: edge-cors-policy
+config:
+  allowed_host_suffixes:
+    - example.com
+  allow_methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    - OPTIONS
+  allow_headers:
+    - Authorization
+    - Content-Type
+    - X-Request-Id
+  expose_headers:
+    - X-Request-Id
+  allow_credentials: true
+  max_age: 600
+  reject_disallowed_origins: true
+  reject_status_code: 403
+  allow_private_network: false

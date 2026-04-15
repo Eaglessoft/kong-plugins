@@ -1,0 +1,25 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: edge-header-policy
+  namespace: apps
+plugin: edge-header-policy
+config:
+  request_exact_mode: append
+  request_prefix_mode: append
+  response_exact_mode: append
+  response_prefix_mode: append
+  request_allow_headers:
+    - X-Request-Id
+    - X-Correlation-Id
+  request_allow_prefixes: []
+  request_block_headers:
+    - X-Forwarded-User
+    - X-Forwarded-Role
+  request_block_prefixes: []
+  response_allow_headers: []
+  response_allow_prefixes: []
+  response_block_headers:
+    - X-Upstream-Service-Time
+  response_block_prefixes:
+    - x-debug-

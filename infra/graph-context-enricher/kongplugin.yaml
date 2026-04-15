@@ -1,0 +1,53 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: graph-context-enricher
+  namespace: apps
+plugin: graph-context-enricher
+config:
+  graph_url: https://graph.example.com/v1/graphql
+  graph_query: |
+    query ResolveContext($tenant_id: String!, $user_id: String!) {
+      tenant(where: { id: { _eq: $tenant_id } }) {
+        id
+        slug
+      }
+      user(where: { id: { _eq: $user_id } }) {
+        id
+        email
+        roles
+      }
+    }
+  on_upstream_error: reject
+  on_missing_data: reject
+  on_multiple_results: reject
+  variable_mappings:
+    - variable: tenant_id
+      from_header: x-tenant-id
+      required: true
+    - variable: user_id
+      from_header: x-auth-token-user-id
+      required: true
+  forward_headers:
+    - authorization
+  static_request_headers:
+    - header: x-service-role
+      value: context_reader
+  array_unwrap_paths:
+    - $.data.tenant
+    - $.data.user
+  required_paths:
+    - $.data.tenant
+    - $.data.user
+  output_header_mappings:
+    - header: X-Context-Tenant-Id
+      source_path: $.data.tenant.id
+    - header: X-Context-Tenant-Slug
+      source_path: $.data.tenant.slug
+    - header: X-Context-User-Id
+      source_path: $.data.user.id
+    - header: X-Context-User-Email
+      source_path: $.data.user.email
+    - header: X-Context-User-Roles
+      source_path: $.data.user.roles
+      json_encode: true

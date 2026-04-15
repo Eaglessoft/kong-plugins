@@ -1,0 +1,17 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongClusterPlugin
+metadata:
+  name: jwt-auth-context
+  labels:
+    global: "false"
+plugin: jwt-auth-context
+config:
+  jwks_url: https://id.example.com/realms/main/protocol/openid-connect/certs
+  expected_issuer: https://id.example.com/realms/main
+  expected_audience: gateway
+  require_email_verified: true
+  required_role: app_user
+  on_missing_token: reject
+  on_invalid_token: reject
+  token_sources:
+    - authorization
