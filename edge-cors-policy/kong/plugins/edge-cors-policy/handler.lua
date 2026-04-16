@@ -1,7 +1,7 @@
 local kong = kong
 
 local plugin = {
-  PRIORITY = 2100,
+  PRIORITY = 3100,
   VERSION = "1.0.0",
 }
 
