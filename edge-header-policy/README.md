@@ -44,8 +44,10 @@ export KONG_PLUGINS=bundled,edge-header-policy
 
 - Scans all request headers in `access`.
 - Removes blocked exact headers and blocked prefixes unless explicitly allowlisted.
+- Applies optional static request headers after request cleanup.
 - Scans all response headers in `header_filter`.
 - Removes internal, spoofable, or noisy response headers before the final response.
+- Applies optional static response headers after response cleanup.
 - Supports `append` and `override` modes for default exact and prefix rules.
 
 ## Main Config Fields
@@ -62,5 +64,19 @@ export KONG_PLUGINS=bundled,edge-header-policy
 - `response_allow_prefixes`
 - `response_block_headers`
 - `response_block_prefixes`
+- `static_request_headers`
+- `static_response_headers`
 
 See [schema.lua](./kong/plugins/edge-header-policy/schema.lua) for the exact schema and defaults.
+
+## Static Header Injection
+
+Use `static_request_headers` to write fixed headers to the upstream request, and `static_response_headers` to write fixed headers to the client response.
+
+Each entry supports:
+
+- `header`
+- `value`
+- `overwrite`
+
+If `overwrite` is `true`, the plugin always sets the configured value. If `false`, the plugin only writes the header when it is currently missing or empty.

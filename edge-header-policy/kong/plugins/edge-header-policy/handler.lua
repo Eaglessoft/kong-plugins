@@ -106,6 +106,21 @@ local function build_allow_set(values)
   return set
 end
 
+local function build_static_headers(values)
+  local items = {}
+
+  for _, item in ipairs(values or {}) do
+    items[#items + 1] = {
+      header = item.header,
+      normalized_header = normalize_lower(item.header),
+      value = item.value,
+      overwrite = item.overwrite ~= false,
+    }
+  end
+
+  return items
+end
+
 local function build_compiled(conf)
   local compiled = compiled_cache[conf]
   if compiled then
@@ -121,6 +136,8 @@ local function build_compiled(conf)
     response_allow_prefixes = build_prefixes("override", {}, conf.response_allow_prefixes),
     response_block_headers = build_exact_set(conf.response_exact_mode, DEFAULT_RESPONSE_BLOCK_HEADERS, conf.response_block_headers),
     response_block_prefixes = build_prefixes(conf.response_prefix_mode, DEFAULT_RESPONSE_BLOCK_PREFIXES, conf.response_block_prefixes),
+    static_request_headers = build_static_headers(conf.static_request_headers),
+    static_response_headers = build_static_headers(conf.static_response_headers),
   }
 
   compiled_cache[conf] = compiled
@@ -139,6 +156,32 @@ local function should_block(name, exact_allow, prefix_allow, exact_block, prefix
   return exact_block[name] or contains_prefix(name, prefix_block)
 end
 
+local function apply_static_request_headers(compiled)
+  for _, item in ipairs(compiled.static_request_headers) do
+    if item.overwrite then
+      kong.service.request.set_header(item.header, item.value)
+    else
+      local existing = kong.request.get_header(item.normalized_header)
+      if existing == nil or existing == "" then
+        kong.service.request.set_header(item.header, item.value)
+      end
+    end
+  end
+end
+
+local function apply_static_response_headers(compiled)
+  for _, item in ipairs(compiled.static_response_headers) do
+    if item.overwrite then
+      kong.response.set_header(item.header, item.value)
+    else
+      local existing = kong.response.get_header(item.header)
+      if existing == nil or existing == "" then
+        kong.response.set_header(item.header, item.value)
+      end
+    end
+  end
+end
+
 function plugin:access(conf)
   local compiled = build_compiled(conf)
   local headers = kong.request.get_headers()
@@ -155,6 +198,8 @@ function plugin:access(conf)
       kong.service.request.clear_header(name)
     end
   end
+
+  apply_static_request_headers(compiled)
 end
 
 function plugin:header_filter(conf)
@@ -177,6 +222,8 @@ function plugin:header_filter(conf)
       kong.response.clear_header(name)
     end
   end
+
+  apply_static_response_headers(compiled)
 end
 
 return plugin

@@ -22,3 +22,11 @@ config:
     - X-Upstream-Service-Time
   response_block_prefixes:
     - x-debug-
+  static_request_headers:
+    - header: X-Edge-Source
+      value: kong-cluster
+      overwrite: true
+  static_response_headers:
+    - header: X-Edge-Policy
+      value: edge-header-policy
+      overwrite: false

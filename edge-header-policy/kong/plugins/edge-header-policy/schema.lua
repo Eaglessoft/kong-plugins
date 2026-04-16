@@ -149,6 +149,36 @@ return {
               },
             },
           },
+          {
+            static_request_headers = {
+              type = "array",
+              required = true,
+              default = EMPTY_LIST,
+              elements = {
+                type = "record",
+                fields = {
+                  { header = { type = "string", required = true, custom_validator = validate_header_name } },
+                  { value = { type = "string", required = true } },
+                  { overwrite = { type = "boolean", required = true, default = true } },
+                },
+              },
+            },
+          },
+          {
+            static_response_headers = {
+              type = "array",
+              required = true,
+              default = EMPTY_LIST,
+              elements = {
+                type = "record",
+                fields = {
+                  { header = { type = "string", required = true, custom_validator = validate_header_name } },
+                  { value = { type = "string", required = true } },
+                  { overwrite = { type = "boolean", required = true, default = true } },
+                },
+              },
+            },
+          },
         },
       },
     },
