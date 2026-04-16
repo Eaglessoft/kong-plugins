@@ -201,7 +201,16 @@ local function reject(code, status, message)
   })
 end
 
+local function resolve_error_response(conf, key, fallback_code, fallback_message)
+  local responses = conf.error_responses or {}
+  local response = responses[key] or {}
+
+  return response.client_code or fallback_code, response.message or fallback_message
+end
+
 local function maybe_handle_result_policy(conf, code, status, message, extra)
+  local client_code, client_message
+
   if (code == "GRAPH_REQUEST_FAILED" and conf.on_upstream_error == "pass")
      or (code == "MISSING_DATA" and conf.on_missing_data == "pass")
      or (code == "MULTIPLE_RESULTS" and conf.on_multiple_results == "pass") then
@@ -209,8 +218,18 @@ local function maybe_handle_result_policy(conf, code, status, message, extra)
     return
   end
 
+  if code == "GRAPH_REQUEST_FAILED" then
+    client_code, client_message = resolve_error_response(conf, "graph_request_failed", code, message)
+  elseif code == "MISSING_DATA" then
+    client_code, client_message = resolve_error_response(conf, "missing_data", code, message)
+  elseif code == "MULTIPLE_RESULTS" then
+    client_code, client_message = resolve_error_response(conf, "multiple_results", code, message)
+  else
+    client_code, client_message = code, message
+  end
+
   log_event("err", code, message, extra)
-  return reject(code, status, message)
+  return reject(client_code, status, client_message)
 end
 
 local function unwrap_arrays(conf, payload)
@@ -260,7 +279,13 @@ function plugin:access(conf)
 
   local variables, missing_header = build_variables(conf)
   if not variables then
-    return reject("MISSING_REQUIRED_INPUT", 400, "Required input header is missing: " .. missing_header)
+    local client_code, client_message = resolve_error_response(
+      conf,
+      "missing_required_input",
+      "MISSING_REQUIRED_INPUT",
+      "Required input header is missing"
+    )
+    return reject(client_code, 400, client_message .. ": " .. missing_header)
   end
 
   local response, err = make_request(conf, compiled, {
@@ -276,9 +301,16 @@ function plugin:access(conf)
 
   local payload = cjson.decode(response.body or "")
   if not payload or payload.errors then
-    return maybe_handle_result_policy(conf, "GRAPH_REQUEST_FAILED", 502, "Graph lookup returned an error", {
+    local client_code, client_message = resolve_error_response(
+      conf,
+      "graph_error_response",
+      "GRAPH_REQUEST_FAILED",
+      "Graph lookup returned an error"
+    )
+    log_event("err", "GRAPH_REQUEST_FAILED", "Graph lookup returned an error", {
       graph_errors = payload and payload.errors or response.body,
     })
+    return reject(client_code, 502, client_message)
   end
 
   local exit_response, handled = unwrap_arrays(conf, payload)

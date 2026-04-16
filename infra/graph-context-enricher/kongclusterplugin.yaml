@@ -47,3 +47,19 @@ config:
       source_path: $.data.tenant.slug
     - header: X-Context-User-Id
       source_path: $.data.user.id
+  error_responses:
+    missing_required_input:
+      client_code: CONTEXT_INPUT_MISSING
+      message: Required context header is missing
+    graph_request_failed:
+      client_code: CONTEXT_LOOKUP_FAILED
+      message: Context lookup failed
+    graph_error_response:
+      client_code: CONTEXT_LOOKUP_ERROR
+      message: Context service returned an error
+    missing_data:
+      client_code: CONTEXT_NOT_FOUND
+      message: Required context data was not found
+    multiple_results:
+      client_code: CONTEXT_AMBIGUOUS
+      message: Multiple matching context records were found

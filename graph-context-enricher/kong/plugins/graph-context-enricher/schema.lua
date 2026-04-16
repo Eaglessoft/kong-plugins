@@ -120,6 +120,64 @@ return {
               },
             },
           },
+          {
+            error_responses = {
+              type = "record",
+              required = true,
+              fields = {
+                {
+                  missing_required_input = {
+                    type = "record",
+                    required = true,
+                    fields = {
+                      { client_code = { type = "string", required = true, default = "MISSING_REQUIRED_INPUT" } },
+                      { message = { type = "string", required = true, default = "Required input header is missing" } },
+                    },
+                  },
+                },
+                {
+                  graph_request_failed = {
+                    type = "record",
+                    required = true,
+                    fields = {
+                      { client_code = { type = "string", required = true, default = "GRAPH_REQUEST_FAILED" } },
+                      { message = { type = "string", required = true, default = "Graph lookup failed" } },
+                    },
+                  },
+                },
+                {
+                  graph_error_response = {
+                    type = "record",
+                    required = true,
+                    fields = {
+                      { client_code = { type = "string", required = true, default = "GRAPH_REQUEST_FAILED" } },
+                      { message = { type = "string", required = true, default = "Graph lookup returned an error" } },
+                    },
+                  },
+                },
+                {
+                  missing_data = {
+                    type = "record",
+                    required = true,
+                    fields = {
+                      { client_code = { type = "string", required = true, default = "MISSING_DATA" } },
+                      { message = { type = "string", required = true, default = "Required graph data is missing" } },
+                    },
+                  },
+                },
+                {
+                  multiple_results = {
+                    type = "record",
+                    required = true,
+                    fields = {
+                      { client_code = { type = "string", required = true, default = "MULTIPLE_RESULTS" } },
+                      { message = { type = "string", required = true, default = "Graph lookup returned multiple results" } },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
         custom_validator = function(config)
           if config.graph_query == "" then
