@@ -313,6 +313,12 @@ function plugin:access(conf)
     return reject(client_code, 502, client_message)
   end
 
+  if payload.data == nil or payload.data == cjson.null then
+    return maybe_handle_result_policy(conf, "MISSING_DATA", 401, "Required graph data is missing", {
+      path = "$.data",
+    })
+  end
+
   local exit_response, handled = unwrap_arrays(conf, payload)
   if handled then
     return exit_response
@@ -324,7 +330,18 @@ function plugin:access(conf)
   end
 
   for _, mapping in ipairs(compiled.output_mappings) do
-    write_header(mapping.header, read_path(payload, mapping.source_path), mapping.json_encode)
+    local value = read_path(payload, mapping.source_path)
+    if value == nil or value == cjson.null then
+      exit_response, handled = maybe_handle_result_policy(conf, "MISSING_DATA", 401, "Required graph data is missing", {
+        path = mapping.source_path,
+      }), true
+
+      if handled then
+        return exit_response
+      end
+    end
+
+    write_header(mapping.header, value, mapping.json_encode)
   end
 end
 
