@@ -330,18 +330,7 @@ function plugin:access(conf)
   end
 
   for _, mapping in ipairs(compiled.output_mappings) do
-    local value = read_path(payload, mapping.source_path)
-    if value == nil or value == cjson.null then
-      exit_response, handled = maybe_handle_result_policy(conf, "MISSING_DATA", 401, "Required graph data is missing", {
-        path = mapping.source_path,
-      }), true
-
-      if handled then
-        return exit_response
-      end
-    end
-
-    write_header(mapping.header, value, mapping.json_encode)
+    write_header(mapping.header, read_path(payload, mapping.source_path), mapping.json_encode)
   end
 end
 
