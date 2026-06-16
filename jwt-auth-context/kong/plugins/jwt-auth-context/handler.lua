@@ -9,7 +9,7 @@ local ngx = ngx
 
 local plugin = {
   PRIORITY = 2200,
-  VERSION = "1.0.0",
+  VERSION = "1.0.1",
 }
 
 local DEFAULT_MAPPINGS = {
@@ -170,6 +170,7 @@ local function fetch_jwks(conf)
     local response, err = client:request_uri(conf.jwks_url, {
       method = "GET",
       ssl_verify = conf.ssl_verify,
+      ssl_server_name = conf.jwks_url and conf.jwks_url:match("^https://([^/:]+)"),
       headers = { Accept = "application/json" },
     })
 
@@ -204,18 +205,32 @@ local function jwk_to_pem(jwk_key)
     local cert_pem = "-----BEGIN CERTIFICATE-----\n"
       .. jwk_key.x5c[1]
       .. "\n-----END CERTIFICATE-----\n"
-    local cert = assert(x509.new(cert_pem))
-    local public_key = assert(cert:get_pubkey())
-    return assert(public_key:to_PEM("public"))
+
+    local cert, cert_err = x509.new(cert_pem)
+    if not cert then
+      return nil, "invalid_x5c_certificate:" .. tostring(cert_err)
+    end
+
+    local public_key, key_err = cert:get_pubkey()
+    if not public_key then
+      return nil, "x5c_public_key_failed:" .. tostring(key_err)
+    end
+
+    return public_key:to_PEM("public")
   end
 
   if jwk_key.kty == "RSA" and jwk_key.n and jwk_key.e then
-    local key = assert(pkey.new({
+    local key, key_err = pkey.new({
       kty = jwk_key.kty,
       n = jwk_key.n,
       e = jwk_key.e,
-    }))
-    return assert(key:to_PEM("public"))
+    })
+
+    if not key then
+      return nil, "rsa_jwk_public_key_failed:" .. tostring(key_err)
+    end
+
+    return key:to_PEM("public")
   end
 
   return nil, "unsupported_jwk_material"
@@ -226,15 +241,17 @@ local function select_jwk(jwks, kid)
     return nil
   end
 
-  if kid then
-    for _, key in ipairs(jwks.keys) do
-      if key.kid == kid then
-        return key
-      end
+  if not kid or kid == "" then
+    return nil
+  end
+
+  for _, key in ipairs(jwks.keys) do
+    if key.kid == kid and (not key.use or key.use == "sig") then
+      return key
     end
   end
 
-  return jwks.keys[1]
+  return nil
 end
 
 local function array_contains(values, target)
@@ -278,6 +295,7 @@ local function verify_token(conf, token)
   end
 
   local now = ngx.time()
+
   local exp = tonumber(verified.payload.exp)
   if exp and now > (exp + conf.clock_skew_seconds) then
     return nil, "token_expired"
@@ -294,6 +312,7 @@ local function verify_token(conf, token)
 
   if conf.expected_audience then
     local aud = verified.payload.aud
+
     if type(aud) == "table" then
       if not array_contains(aud, conf.expected_audience) then
         return nil, "audience_mismatch"
@@ -308,14 +327,17 @@ end
 
 local function read_path(source, path)
   local current = source
+
   for part in path:gmatch("[^.]+") do
     if part ~= "$" then
       if type(current) ~= "table" then
         return nil
       end
+
       current = current[part]
     end
   end
+
   return current
 end
 
@@ -347,6 +369,7 @@ local function write_value(header, value, json_encode)
     else
       kong.service.request.set_header(header, table.concat(value, ","))
     end
+
     return
   end
 
@@ -394,9 +417,11 @@ function plugin:access(conf)
 
   for _, mapping in ipairs(compiled.mappings) do
     local value = read_path(payload, mapping.claim_path)
+
     if mapping.required and (value == nil or value == cjson.null) then
       return reject(401, "REQUIRED_CLAIM_MISSING", "Required claim is missing")
     end
+
     write_value(mapping.header, value, mapping.json_encode)
   end
 end
