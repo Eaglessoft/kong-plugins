@@ -9,7 +9,7 @@ local ngx = ngx
 
 local plugin = {
   PRIORITY = 2200,
-  VERSION = "1.0.1",
+  VERSION = "1.1.0",
 }
 
 local DEFAULT_MAPPINGS = {
@@ -139,6 +139,9 @@ local function extract_token(conf)
     if source == "authorization" then
       local header = kong.request.get_header("authorization")
       if header then
+        if type(header) ~= "string" then
+          return nil, source, "invalid"
+        end
         local token = header:match("^[Bb]earer%s+(.+)$")
         if token then
           return token, source
@@ -152,12 +155,85 @@ local function extract_token(conf)
     elseif source == "query" then
       local token = kong.request.get_query_arg(conf.query_param_name)
       if token and token ~= "" then
+        if type(token) ~= "string" then
+          return nil, source, "invalid"
+        end
         return token, source
       end
     end
   end
 
   return nil
+end
+
+local function read_client_credentials(conf)
+  local headers, err = kong.request.get_headers(1000)
+  local id_header = conf.client_id_header:lower()
+  local secret_header = conf.client_secret_header:lower()
+  local client_id, client_secret = headers[id_header], headers[secret_header]
+
+  kong.service.request.clear_header(id_header)
+  kong.service.request.clear_header(secret_header)
+
+  if err then
+    return nil, nil, "invalid"
+  end
+
+  if client_id == nil and client_secret == nil then
+    return nil, nil
+  end
+
+  if type(client_id) ~= "string" or type(client_secret) ~= "string"
+     or not client_id:find("%S") or not client_secret:find("%S")
+     or client_id:find("%c") or client_secret:find("%c") then
+    return nil, nil, "invalid"
+  end
+
+  if headers.authorization ~= nil then
+    return nil, nil, "mixed"
+  end
+
+  return client_id, client_secret
+end
+
+local function request_client_token(conf, client_id, client_secret)
+  local client = http.new()
+  client:set_timeouts(conf.connect_timeout_ms, conf.send_timeout_ms, conf.read_timeout_ms)
+
+  local response = client:request_uri(conf.token_endpoint_url, {
+    method = "POST",
+    ssl_verify = conf.ssl_verify,
+    ssl_server_name = conf.token_endpoint_url:match("^https://([^/:]+)"),
+    headers = {
+      ["Content-Type"] = "application/x-www-form-urlencoded",
+      Accept = "application/json",
+    },
+    body = ngx.encode_args({
+      grant_type = "client_credentials",
+      client_id = client_id,
+      client_secret = client_secret,
+    }),
+  })
+
+  if not response then
+    return nil, "unavailable"
+  end
+
+  local body = cjson.decode(response.body or "")
+  if response.status == 401
+     or (response.status == 400 and type(body) == "table"
+       and (body.error == "invalid_client" or body.error == "unauthorized_client")) then
+    return nil, "invalid_client"
+  end
+
+  if response.status ~= 200 or type(body) ~= "table"
+     or type(body.access_token) ~= "string" or body.access_token == ""
+     or body.access_token:find("%s") or body.access_token:find("%c")
+     or type(body.token_type) ~= "string" or body.token_type:lower() ~= "bearer" then
+    return nil, "invalid_response"
+  end
+
+  return body.access_token
 end
 
 local function fetch_jwks(conf)
@@ -380,7 +456,36 @@ function plugin:access(conf)
   local compiled = compile_config(conf)
   clear_headers(compiled)
 
-  local token, source = extract_token(conf)
+  local client_id, client_secret, credentials_err
+  if conf.client_credentials_enabled then
+    client_id, client_secret, credentials_err = read_client_credentials(conf)
+    if credentials_err == "mixed" then
+      return reject(400, "MIXED_CREDENTIALS", "Use either a JWT or client credentials")
+    end
+    if credentials_err then
+      return reject(401, "INVALID_CLIENT_CREDENTIALS", "One client ID and client secret are required")
+    end
+  end
+
+  local token, source, token_err = extract_token(conf)
+  if client_id and (token or token_err) then
+    return reject(400, "MIXED_CREDENTIALS", "Use either a JWT or client credentials")
+  end
+  if token_err then
+    return reject(401, "INVALID_TOKEN", "JWT token is invalid")
+  end
+
+  if client_id then
+    local exchange_err
+    token, exchange_err = request_client_token(conf, client_id, client_secret)
+    if not token then
+      if exchange_err == "invalid_client" then
+        return reject(401, "INVALID_CLIENT_CREDENTIALS", "Client authentication failed")
+      end
+      return reject(502, "TOKEN_ENDPOINT_FAILED", "Token endpoint did not return a valid access token")
+    end
+    source = "client_credentials"
+  end
   if not token then
     if conf.on_missing_token == "pass" then
       return
@@ -396,11 +501,11 @@ function plugin:access(conf)
   local payload, verify_err = verify_token(conf, token)
   if not payload then
     log_event("err", "TOKEN_VERIFICATION_FAILED", "JWT verification failed", {
-      reason = verify_err,
+      reason = source == "client_credentials" and "issued_token_validation_failed" or verify_err,
       token_source = source,
     })
 
-    if conf.on_invalid_token == "redirect" then
+    if source ~= "client_credentials" and conf.on_invalid_token == "redirect" then
       return maybe_redirect(conf, "invalid_token")
     end
 
@@ -423,6 +528,10 @@ function plugin:access(conf)
     end
 
     write_value(mapping.header, value, mapping.json_encode)
+  end
+
+  if source == "client_credentials" then
+    kong.service.request.set_header("authorization", "Bearer " .. token)
   end
 end
 
