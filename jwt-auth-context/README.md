@@ -16,7 +16,7 @@ luarocks make
 Or install a built rock:
 
 ```bash
-luarocks install kong-plugin-jwt-auth-context-1.0.0-1.all.rock
+luarocks install kong-plugin-jwt-auth-context-1.1.0-1.all.rock
 ```
 
 Enable it in Kong:
@@ -29,7 +29,7 @@ export KONG_PLUGINS=bundled,jwt-auth-context
 
 ```bash
 cd external_plugins
-luarocks make kong-plugins-bundle-1.0.0-1.rockspec
+luarocks make kong-plugins-bundle-1.1.0-1.rockspec
 export KONG_PLUGINS=bundled,jwt-auth-context
 ```
 
@@ -114,7 +114,7 @@ Run the focused tests with Python and Docker:
 python tests/test_jwt_auth_context.py
 ```
 
-The runner uses Kong 3.9.1's LuaJIT with deterministic HTTP/JWT/Kong doubles and
+The runner uses Kong 3.9.4's LuaJIT with deterministic HTTP/JWT/Kong doubles and
 no network access inside the test container. It verifies plugin decisions and
 schema rules, not the configuration of a live Keycloak realm.
 

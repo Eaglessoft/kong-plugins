@@ -8,7 +8,7 @@ import unittest
 class JwtAuthContextTests(unittest.TestCase):
     def run_lua(self, entrypoint, arguments):
         root = Path(__file__).resolve().parents[1]
-        image = os.environ.get("KONG_TEST_IMAGE", "kong:3.9.1")
+        image = os.environ.get("KONG_TEST_IMAGE", "kong:3.9.4")
         command = [
             "docker", "run", "--rm", "--network", "none",
             "--mount", f"type=bind,source={root},target=/workspace,readonly",

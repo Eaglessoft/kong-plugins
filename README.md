@@ -7,7 +7,7 @@ This directory contains the external Kong plugins maintained in this repository,
 ```text
 external_plugins/
   README.md
-  kong-plugins-bundle-1.0.0-1.rockspec
+  kong-plugins-bundle-1.1.0-1.rockspec
   edge-cors-policy/
   edge-header-policy/
   jwt-auth-context/
@@ -36,7 +36,7 @@ Examples:
 
 - [edge-cors-policy rockspec](./edge-cors-policy/kong-plugin-edge-cors-policy-1.0.0-1.rockspec)
 - [edge-header-policy rockspec](./edge-header-policy/kong-plugin-edge-header-policy-1.0.0-1.rockspec)
-- [jwt-auth-context rockspec](./jwt-auth-context/kong-plugin-jwt-auth-context-1.0.0-1.rockspec)
+- [jwt-auth-context rockspec](./jwt-auth-context/kong-plugin-jwt-auth-context-1.1.0-1.rockspec)
 - [graph-context-enricher rockspec](./graph-context-enricher/kong-plugin-graph-context-enricher-1.0.0-1.rockspec)
 
 Install one plugin:
@@ -56,13 +56,13 @@ luarocks install kong-plugin-edge-cors-policy-1.0.0-1.all.rock
 
 The repository root of `external_plugins` also ships a bundle rockspec:
 
-- [kong-plugins-bundle-1.0.0-1.rockspec](./kong-plugins-bundle-1.0.0-1.rockspec)
+- [kong-plugins-bundle-1.1.0-1.rockspec](./kong-plugins-bundle-1.1.0-1.rockspec)
 
 This installs multiple plugin modules through one LuaRocks package:
 
 ```bash
 cd external_plugins
-luarocks make kong-plugins-bundle-1.0.0-1.rockspec
+luarocks make kong-plugins-bundle-1.1.0-1.rockspec
 ```
 
 Important: the bundle only changes packaging. Kong runtime activation is still per plugin name:

@@ -29,7 +29,7 @@ export KONG_PLUGINS=bundled,edge-header-policy
 
 ```bash
 cd external_plugins
-luarocks make kong-plugins-bundle-1.0.0-1.rockspec
+luarocks make kong-plugins-bundle-1.1.0-1.rockspec
 export KONG_PLUGINS=bundled,edge-header-policy
 ```
 
