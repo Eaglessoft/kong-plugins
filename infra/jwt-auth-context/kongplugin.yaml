@@ -8,6 +8,11 @@ config:
   jwks_url: https://id.example.com/realms/main/protocol/openid-connect/certs
   expected_issuer: https://id.example.com/realms/main
   expected_audience: gateway
+  # Opt in to client ID + secret headers, verified through the SSO token endpoint.
+  # client_credentials_enabled: true
+  # token_endpoint_url: https://id.example.com/realms/main/protocol/openid-connect/token
+  # client_id_header: X-Client-Id
+  # client_secret_header: X-API-Key
   require_email_verified: true
   required_role: app_user
   on_missing_token: reject

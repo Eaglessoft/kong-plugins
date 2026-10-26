@@ -43,6 +43,10 @@ return {
           { token_sources = { type = "array", required = true, default = { "authorization" }, elements = { type = "string", one_of = { "authorization", "cookie", "query" } } } },
           { cookie_name = { type = "string", required = true, default = "access_token" } },
           { query_param_name = { type = "string", required = true, default = "access_token" } },
+          { client_credentials_enabled = { type = "boolean", required = true, default = false } },
+          { token_endpoint_url = typedefs.url({ required = false }) },
+          { client_id_header = { type = "string", required = true, default = "X-Client-Id", custom_validator = validate_header_name } },
+          { client_secret_header = { type = "string", required = true, default = "X-API-Key", custom_validator = validate_header_name } },
           {
             custom_header_mappings = {
               type = "array",
@@ -64,6 +68,39 @@ return {
           if (config.on_missing_token == "redirect" or config.on_invalid_token == "redirect")
              and not config.browser_redirect_url then
             return nil, "browser_redirect_url is required when redirect behavior is enabled"
+          end
+
+          if config.client_credentials_enabled then
+            local authority = type(config.token_endpoint_url) == "string"
+              and config.token_endpoint_url:match("^https://([^/?#]+)")
+            if not authority or authority:find("@", 1, true) or config.token_endpoint_url:find("#", 1, true) then
+              return nil, "an HTTPS token_endpoint_url without userinfo or fragment is required for client credentials"
+            end
+
+            local id_header, secret_header = config.client_id_header:lower(), config.client_secret_header:lower()
+            if id_header == secret_header then
+              return nil, "client credential headers must be different"
+            end
+
+            local reserved = {
+              authorization = true, cookie = true, host = true,
+              ["content-type"] = true, ["content-length"] = true,
+              connection = true, ["proxy-authorization"] = true,
+              ["transfer-encoding"] = true, ["keep-alive"] = true,
+              te = true, trailer = true, upgrade = true,
+            }
+            for _, header in ipairs({ id_header, secret_header }) do
+              if reserved[header] or header:match("^x%-auth%-")
+                 or header:match("^x%-company%-") or header:match("^x%-subscription%-")
+                 or header:match("^x%-hasura%-") then
+                return nil, "client credential headers must not replace authentication or routing headers"
+              end
+              for _, mapping in ipairs(config.custom_header_mappings or {}) do
+                if header == mapping.header:lower() then
+                  return nil, "client credential headers must not overlap custom_header_mappings"
+                end
+              end
+            end
           end
 
           return true
