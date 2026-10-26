@@ -30,7 +30,7 @@ export KONG_PLUGINS=bundled,edge-cors-policy
 From the `external_plugins` directory:
 
 ```bash
-luarocks make kong-plugins-bundle-1.0.0-1.rockspec
+luarocks make kong-plugins-bundle-1.1.0-1.rockspec
 ```
 
 Then enable the plugin by name:
